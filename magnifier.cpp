@@ -129,7 +129,7 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         }
         break;
 
-    case WM_LBUTTONDBLCLK:
+    case WM_MBUTTONDOWN:
         // Toggle magnified cursor.
         ToggleCursor();
         break;
@@ -140,7 +140,7 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         SendMessage(hWnd, WM_SYSCOMMAND, SC_MOVE | HTCAPTION, 0);
         break;
 
-    case WM_RBUTTONDBLCLK:
+    case WM_LBUTTONDBLCLK:
     case WM_DESTROY:
         // Close window.
         PostQuitMessage(0);
