@@ -1,6 +1,6 @@
 // Ensure that the following definition is in effect before winuser.h is included.
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0501    
+#define _WIN32_WINNT _WIN32_WINNT_WIN7
 #endif
 
 #pragma comment(lib, "user32.lib")
@@ -12,26 +12,27 @@
 #include <magnification.h>
 
 // Constants.
+#define BORDERWIDTH 1
 #define MAGFACTOR  2.0f
 #define TIMERINTERVAL 16 // close to the refresh rate @60hz
 #define WINDOWTITLE "Magnifier"
 #define WINDOWCLASSNAME "MagnifierWindow"
 
 // Global variables and strings.
-HINSTANCE           hInst;
 HWND                hwndMag;
 HWND                hwndHost;
-RECT                magWindowRect;
 DWORD               diameter;
 FLOAT               magfactor;
 BOOL                showCursor;
+BOOL                showBorder;
 
 // Forward declarations.
-BOOL                SetupMagnifier(HINSTANCE hinst);
+BOOL                SetupMagnifier(HINSTANCE hInstance);
 LRESULT CALLBACK    HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
-BOOL                UpdateMagnification();
-void                UpdateSize();
 void                ToggleCursor();
+BOOL                UpdateMagnification();
+void                OnPaint();
+void                UpdateSize();
 void                UpdateMagWindow();
 void CALLBACK       UpdateMagWindowCallback(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime);
 
@@ -54,7 +55,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     }
 
     ShowWindow(hwndHost, nCmdShow);
-    UpdateWindow(hwndHost);
+    RedrawWindow(hwndHost, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 
     // Create a timer to update the control.
     timerId = SetTimer(hwndHost, 0, TIMERINTERVAL, UpdateMagWindowCallback);
@@ -82,9 +83,18 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
             // Close window.
             PostQuitMessage(0);
         }
+        else if (wParam == 'B')
+        {
+            showBorder = !showBorder;
+            RedrawWindow(hwndHost, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+        }
+        else if (wParam == 'C')
+        {
+            ToggleCursor();
+        }
         else if (wParam == VK_OEM_PLUS || wParam == VK_ADD)
         {
-            if (GetKeyState(VK_SHIFT) < 0) // Shift key pressed
+            if (GetKeyState(VK_CONTROL) < 0) // Control key pressed
             {
                 // Zoom in.
                 magfactor += 1.0f;
@@ -99,7 +109,7 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         }
         else if (wParam == VK_OEM_MINUS || wParam == VK_SUBTRACT)
         {
-            if (GetKeyState(VK_SHIFT) < 0) // Shift key pressed
+            if (GetKeyState(VK_CONTROL) < 0) // Control key pressed
             {
                 // Zoom out.
                 magfactor -= 1.0f;
@@ -114,7 +124,7 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         }
         else if (wParam == '0' || wParam == VK_NUMPAD0)
         {
-            if (GetKeyState(VK_SHIFT) < 0) // Shift key pressed
+            if (GetKeyState(VK_CONTROL) < 0) // Control key pressed
             {
                 // Reset zoom.
                 magfactor = 2.0f;
@@ -140,10 +150,27 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         SendMessage(hWnd, WM_SYSCOMMAND, SC_MOVE | HTCAPTION, 0);
         break;
 
+    case WM_HOTKEY:
+        // Minimize/restore window.
+        if (IsIconic(hwndHost))
+        {
+            ShowWindow(hwndHost, SW_RESTORE);
+        }
+        else
+        {
+            ShowWindow(hwndHost, SW_MINIMIZE);
+        }
+        break;
+
     case WM_LBUTTONDBLCLK:
     case WM_DESTROY:
         // Close window.
         PostQuitMessage(0);
+        break;
+
+    case WM_PAINT:
+        // Repaint window.
+        OnPaint();
         break;
 
     default:
@@ -153,18 +180,19 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
     return 0;
 }
 
-BOOL SetupMagnifier(HINSTANCE hinst)
+BOOL SetupMagnifier(HINSTANCE hInstance)
 {
     WNDCLASSEX wcex = {};
     HRGN hRgn = NULL;
+    RECT hostWindowRect = {};
 
     // Register the window class for the window that contains the magnification control.
     wcex.cbSize         = sizeof(WNDCLASSEX); 
     wcex.style          = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
     wcex.lpfnWndProc    = HostWndProc;
-    wcex.hInstance      = hInst;
+    wcex.hInstance      = hInstance;
     wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(1 + COLOR_BTNFACE);
+    wcex.hbrBackground  = NULL;
     wcex.lpszClassName  = WINDOWCLASSNAME;
     RegisterClassEx(&wcex);
 
@@ -182,7 +210,7 @@ BOOL SetupMagnifier(HINSTANCE hinst)
                               diameter,
                               NULL,
                               NULL,
-                              hInst,
+                              hInstance,
                               NULL);
     if (!hwndHost)
     {
@@ -191,30 +219,31 @@ BOOL SetupMagnifier(HINSTANCE hinst)
 
     SetCapture(hwndHost);
 
-    // Make the window circular.
-    hRgn = CreateEllipticRgn(0, 0, diameter, diameter);
-    SetWindowRgn(hwndHost, hRgn, TRUE);
+    // Set a global hotkey to show/hide the window.
+    RegisterHotKey(hwndHost, 0, MOD_NOREPEAT | MOD_CONTROL | MOD_ALT, 'M');
 
     // Make the window opaque.
-    SetLayeredWindowAttributes(hwndHost, 0, 255, LWA_ALPHA);
+    SetLayeredWindowAttributes(hwndHost, RGB(0, 0, 255), 255, LWA_COLORKEY);
 
     // Create a magnifier control that fills the client area.
-    GetClientRect(hwndHost, &magWindowRect);
+    GetClientRect(hwndHost, &hostWindowRect);
     hwndMag = CreateWindow(WINDOWTITLE,
                            WINDOWCLASSNAME,
                            WS_CHILD | WS_VISIBLE,
-                           magWindowRect.left,
-                           magWindowRect.top,
-                           magWindowRect.right,
-                           magWindowRect.bottom,
+                           BORDERWIDTH,
+                           BORDERWIDTH,
+                           diameter - (BORDERWIDTH * 2),
+                           diameter - (BORDERWIDTH * 2),
                            hwndHost,
                            NULL,
-                           hInst,
+                           hInstance,
                            NULL);
     if (!hwndMag)
     {
         return FALSE;
     }
+
+    UpdateSize();
 
     magfactor = MAGFACTOR;
     if (!UpdateMagnification())
@@ -222,9 +251,12 @@ BOOL SetupMagnifier(HINSTANCE hinst)
         return FALSE;
     }
 
-
     showCursor = TRUE;
     ToggleCursor();
+
+    // Repaint host window.
+    showBorder = TRUE;
+    RedrawWindow(hwndHost, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 
     return TRUE;
 }
@@ -266,10 +298,66 @@ BOOL UpdateMagnification()
     return MagSetWindowTransform(hwndMag, &matrix);
 }
 
+void OnPaint()
+{
+    PAINTSTRUCT ps = {};
+    HPEN hPenBg = NULL;
+    HPEN hPenDark = NULL;
+    HPEN hPenLight = NULL;
+    HBRUSH hBrushBg = NULL;
+    HBRUSH hBrushDark = NULL;
+    HBRUSH hBrushLight = NULL;
+
+    BeginPaint(hwndHost, &ps);
+    hPenBg = CreatePen(PS_SOLID, diameter, RGB(0, 0, 255));
+    hPenDark = CreatePen(PS_SOLID, 0, RGB(63, 63, 63));
+    hPenLight = CreatePen(PS_SOLID, 0, RGB(127, 127, 127));
+    hBrushBg = CreateSolidBrush(RGB(0, 0, 255));
+    hBrushDark = CreateSolidBrush(RGB(63, 63, 63));
+    hBrushLight = CreateSolidBrush(RGB(127, 127, 127));
+
+    // Make entire window transparent.
+    SelectObject(ps.hdc, hPenBg);
+    SelectObject(ps.hdc, hBrushBg);
+    Rectangle(ps.hdc,
+              0,
+              0,
+              diameter,
+              diameter);
+
+    //Draw border.
+    if (showBorder)
+    {
+        SelectObject(ps.hdc, hPenDark);
+        SelectObject(ps.hdc, hBrushDark);
+        Ellipse(ps.hdc,
+                0,
+                0,
+                diameter,
+                diameter);
+
+        SelectObject(ps.hdc, hPenLight);
+        SelectObject(ps.hdc, hBrushLight);
+        Ellipse(ps.hdc,
+                1,
+                1,
+                diameter - 1,
+                diameter - 1);
+    }
+
+    DeleteObject(hPenBg);
+    DeleteObject(hPenDark);
+    DeleteObject(hPenLight);
+    DeleteObject(hBrushBg);
+    DeleteObject(hBrushDark);
+    DeleteObject(hBrushLight);
+    EndPaint(hwndHost, &ps);
+}
+
 void UpdateSize()
 {
-    RECT hostWindowRect = {};
     HRGN hRgn = NULL;
+    RECT hostWindowRect = {};
 
     if (diameter < GetSystemMetrics(SM_CYSCREEN) / 4)
     {
@@ -286,29 +374,44 @@ void UpdateSize()
                  HWND_TOPMOST,
                  hostWindowRect.left,
                  hostWindowRect.top,
-                 hostWindowRect.left + diameter,
-                 hostWindowRect.top + diameter,
+                 diameter,
+                 diameter,
                  SWP_NOACTIVATE);
 
-    // Update circle size.
-    hRgn = CreateEllipticRgn(0, 0, diameter, diameter);
+    // Update host window circle size.
+    hRgn = CreateEllipticRgn(0, 0, diameter + 1, diameter + 1);
     SetWindowRgn(hwndHost, hRgn, TRUE);
 
+    // Update magnifier circle size.
+    hRgn = CreateEllipticRgn(BORDERWIDTH,
+                             BORDERWIDTH,
+                             diameter - (BORDERWIDTH * 2),
+                             diameter - (BORDERWIDTH * 2));
+    SetWindowRgn(hwndMag, hRgn, TRUE);
+
     // Update magnifier size.
-    GetClientRect(hwndHost, &magWindowRect);
-    SetWindowPos(hwndMag, NULL, magWindowRect.left, magWindowRect.top, magWindowRect.right, magWindowRect.bottom, 0);
+    SetWindowPos(hwndMag,
+                 NULL,
+                 BORDERWIDTH,
+                 BORDERWIDTH,
+                 diameter - (BORDERWIDTH * 2),
+                 diameter - (BORDERWIDTH * 2),
+                 0);
 
     UpdateMagWindow();
+
+    // Repaint host window.
+    RedrawWindow(hwndHost, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 
 void UpdateMagWindow()
 {
+    RECT magWindowRect = {};
+    RECT sourceRect = {};
     int width = 0;
     int height = 0;
     int centerx = 0;
     int centery = 0;
-    RECT sourceRect = {};
-    HRGN hRgn = NULL;
 
     // Set the source rectangle for the magnifier control.
     GetClientRect(hwndHost, &magWindowRect);
@@ -327,9 +430,6 @@ void UpdateMagWindow()
 
     // Reclaim topmost status, to prevent unmagnified menus from remaining in view. 
     SetWindowPos(hwndHost, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
-
-    // Force redraw.
-    InvalidateRect(hwndMag, NULL, TRUE);
 }
 
 void CALLBACK UpdateMagWindowCallback(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
