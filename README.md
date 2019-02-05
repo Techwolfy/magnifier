@@ -13,8 +13,9 @@ Controls
 | Ctrl-Plus           | Zoom in                    |
 | Ctrl-Minus          | Zoom out                   |
 | Ctrl-Zero           | Reset zoom                 |
-| B                   | Show/hide border           |
-| C / Middle-click    | Show/hide magnified cursor |
+| B                   | Toggle border              |
+| C / Middle-click    | Toggle magnified cursor    |
+| F                   | Toggle follow mode         |
 | Ctrl-Alt-M (global) | Minimize/restore magnifier |
 | ESC / double-click  | Close magnifier            |
 

@@ -25,11 +25,13 @@ DWORD               diameter;
 FLOAT               magfactor;
 BOOL                showCursor;
 BOOL                showBorder;
+BOOL                followCursor;
 
 // Forward declarations.
 BOOL                SetupMagnifier(HINSTANCE hInstance);
 LRESULT CALLBACK    HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 void                ToggleCursor();
+void                ToggleFollow();
 BOOL                UpdateMagnification();
 void                OnPaint();
 void                UpdateSize();
@@ -91,6 +93,10 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         else if (wParam == 'C')
         {
             ToggleCursor();
+        }
+        else if (wParam == 'F')
+        {
+            ToggleFollow();
         }
         else if (wParam == VK_OEM_PLUS || wParam == VK_ADD)
         {
@@ -192,7 +198,6 @@ BOOL SetupMagnifier(HINSTANCE hInstance)
     wcex.lpfnWndProc    = HostWndProc;
     wcex.hInstance      = hInstance;
     wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
-    wcex.hbrBackground  = NULL;
     wcex.lpszClassName  = WINDOWCLASSNAME;
     RegisterClassEx(&wcex);
 
@@ -254,6 +259,8 @@ BOOL SetupMagnifier(HINSTANCE hInstance)
     showCursor = TRUE;
     ToggleCursor();
 
+    followCursor = FALSE;
+
     // Repaint host window.
     showBorder = TRUE;
     RedrawWindow(hwndHost, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
@@ -273,7 +280,20 @@ void ToggleCursor()
     {
         SetWindowLong(hwndMag, GWL_STYLE, GetWindowLong(hwndMag, GWL_STYLE) & ~MS_SHOWMAGNIFIEDCURSOR);
     }
+}
 
+void ToggleFollow()
+{
+    followCursor = !followCursor;
+
+    if (followCursor)
+    {
+        SetWindowLong(hwndHost, GWL_EXSTYLE, GetWindowLong(hwndHost, GWL_EXSTYLE) | WS_EX_TRANSPARENT);
+    }
+    else
+    {
+        SetWindowLong(hwndHost, GWL_EXSTYLE, GetWindowLong(hwndHost, GWL_EXSTYLE) & ~WS_EX_TRANSPARENT);
+    }
 }
 
 BOOL UpdateMagnification()
@@ -434,5 +454,19 @@ void UpdateMagWindow()
 
 void CALLBACK UpdateMagWindowCallback(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
+    POINT mousePoint = {};
+
+    if (followCursor)
+    {
+        GetCursorPos(&mousePoint);
+        SetWindowPos(hwndHost,
+                     HWND_TOPMOST,
+                     mousePoint.x - (diameter / 2),
+                     mousePoint.y - (diameter / 2),
+                     0,
+                     0,
+                     SWP_NOACTIVATE | SWP_NOSIZE);
+    }
+
     UpdateMagWindow();
 }
