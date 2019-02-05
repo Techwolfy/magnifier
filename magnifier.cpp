@@ -5,10 +5,11 @@
 
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
+#pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "magnification.lib")
 
 #include <windows.h>
-#include <wincodec.h>
+#include <gdiplus.h>
 #include <magnification.h>
 
 // Constants.
@@ -319,70 +320,26 @@ BOOL UpdateMagnification()
 void OnPaint()
 {
     PAINTSTRUCT ps = {};
-    HPEN hPenBg = NULL;
-    HPEN hPenDarkGrey = NULL;
-    HPEN hPenLightGrey = NULL;
-    HPEN hPenWhite = NULL;
-    HBRUSH hBrushBg = NULL;
-    HBRUSH hBrushDarkGrey = NULL;
-    HBRUSH hBrushLightGrey = NULL;
-    HBRUSH hBrushWhite = NULL;
 
     BeginPaint(hwndHost, &ps);
-    hPenBg = CreatePen(PS_SOLID, diameter, RGB(0, 0, 255));
-    hPenDarkGrey = CreatePen(PS_SOLID, 0, RGB(33, 33, 33));
-    hPenLightGrey = CreatePen(PS_SOLID, 0, RGB(66, 66, 66));
-    hPenWhite = CreatePen(PS_SOLID, 0, RGB(255, 255, 2255));
-    hBrushBg = CreateSolidBrush(RGB(0, 0, 255));
-    hBrushDarkGrey = CreateSolidBrush(RGB(33, 33, 33));
-    hBrushLightGrey = CreateSolidBrush(RGB(66, 66, 66));
-    hBrushWhite = CreateSolidBrush(RGB(255, 255, 255));
+
+    Gdiplus::Graphics g(ps.hdc);
+    Gdiplus::SolidBrush brushBg(Gdiplus::Color(255, 0, 0, 255));
+    Gdiplus::SolidBrush brushDarkGrey(Gdiplus::Color(255, 33, 33, 33));
+    Gdiplus::SolidBrush brushLightGrey(Gdiplus::Color(255, 66, 66, 66));
+    Gdiplus::SolidBrush brushWhite(Gdiplus::Color(255, 255, 255, 255));
 
     // Make entire window transparent.
-    SelectObject(ps.hdc, hPenBg);
-    SelectObject(ps.hdc, hBrushBg);
-    Rectangle(ps.hdc,
-              0,
-              0,
-              diameter,
-              diameter);
+    g.FillRectangle(&brushBg, 0, 0, diameter, diameter);
 
     //Draw border.
     if (showBorder)
     {
-        SelectObject(ps.hdc, hPenLightGrey);
-        SelectObject(ps.hdc, hBrushLightGrey);
-        Ellipse(ps.hdc,
-                1,
-                1,
-                diameter - 1,
-                diameter - 1);
-
-        SelectObject(ps.hdc, hPenWhite);
-        SelectObject(ps.hdc, hBrushWhite);
-        Ellipse(ps.hdc,
-                2,
-                2,
-                diameter - 2,
-                diameter - 2);
-
-        SelectObject(ps.hdc, hPenDarkGrey);
-        SelectObject(ps.hdc, hBrushDarkGrey);
-        Ellipse(ps.hdc,
-                4,
-                4,
-                diameter - 4,
-                diameter - 4);
+        g.FillEllipse(&brushLightGrey, 1, 1, diameter - 2, diameter - 2);
+        g.FillEllipse(&brushWhite, 2, 2, diameter - 4, diameter - 4);
+        g.FillEllipse(&brushDarkGrey, 4, 4, diameter - 8, diameter - 8);
     }
 
-    DeleteObject(hPenBg);
-    DeleteObject(hPenDarkGrey);
-    DeleteObject(hPenLightGrey);
-    DeleteObject(hPenWhite);
-    DeleteObject(hBrushBg);
-    DeleteObject(hBrushDarkGrey);
-    DeleteObject(hBrushLightGrey);
-    DeleteObject(hBrushWhite);
     EndPaint(hwndHost, &ps);
 }
 
