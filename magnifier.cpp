@@ -12,7 +12,7 @@
 #include <magnification.h>
 
 // Constants.
-#define BORDERWIDTH 1
+#define BORDERWIDTH 5
 #define MAGFACTOR  2.0f
 #define TIMERINTERVAL 16 // close to the refresh rate @60hz
 #define WINDOWTITLE "Magnifier"
@@ -190,7 +190,6 @@ BOOL SetupMagnifier(HINSTANCE hInstance)
 {
     WNDCLASSEX wcex = {};
     HRGN hRgn = NULL;
-    RECT hostWindowRect = {};
 
     // Register the window class for the window that contains the magnification control.
     wcex.cbSize         = sizeof(WNDCLASSEX); 
@@ -231,14 +230,13 @@ BOOL SetupMagnifier(HINSTANCE hInstance)
     SetLayeredWindowAttributes(hwndHost, RGB(0, 0, 255), 255, LWA_COLORKEY);
 
     // Create a magnifier control that fills the client area.
-    GetClientRect(hwndHost, &hostWindowRect);
     hwndMag = CreateWindow(WINDOWTITLE,
                            WINDOWCLASSNAME,
                            WS_CHILD | WS_VISIBLE,
-                           BORDERWIDTH,
-                           BORDERWIDTH,
-                           diameter - (BORDERWIDTH * 2),
-                           diameter - (BORDERWIDTH * 2),
+                           0,
+                           0,
+                           diameter,
+                           diameter,
                            hwndHost,
                            NULL,
                            hInstance,
@@ -322,19 +320,23 @@ void OnPaint()
 {
     PAINTSTRUCT ps = {};
     HPEN hPenBg = NULL;
-    HPEN hPenDark = NULL;
-    HPEN hPenLight = NULL;
+    HPEN hPenDarkGrey = NULL;
+    HPEN hPenLightGrey = NULL;
+    HPEN hPenWhite = NULL;
     HBRUSH hBrushBg = NULL;
-    HBRUSH hBrushDark = NULL;
-    HBRUSH hBrushLight = NULL;
+    HBRUSH hBrushDarkGrey = NULL;
+    HBRUSH hBrushLightGrey = NULL;
+    HBRUSH hBrushWhite = NULL;
 
     BeginPaint(hwndHost, &ps);
     hPenBg = CreatePen(PS_SOLID, diameter, RGB(0, 0, 255));
-    hPenDark = CreatePen(PS_SOLID, 0, RGB(63, 63, 63));
-    hPenLight = CreatePen(PS_SOLID, 0, RGB(127, 127, 127));
+    hPenDarkGrey = CreatePen(PS_SOLID, 0, RGB(33, 33, 33));
+    hPenLightGrey = CreatePen(PS_SOLID, 0, RGB(66, 66, 66));
+    hPenWhite = CreatePen(PS_SOLID, 0, RGB(255, 255, 2255));
     hBrushBg = CreateSolidBrush(RGB(0, 0, 255));
-    hBrushDark = CreateSolidBrush(RGB(63, 63, 63));
-    hBrushLight = CreateSolidBrush(RGB(127, 127, 127));
+    hBrushDarkGrey = CreateSolidBrush(RGB(33, 33, 33));
+    hBrushLightGrey = CreateSolidBrush(RGB(66, 66, 66));
+    hBrushWhite = CreateSolidBrush(RGB(255, 255, 255));
 
     // Make entire window transparent.
     SelectObject(ps.hdc, hPenBg);
@@ -348,29 +350,39 @@ void OnPaint()
     //Draw border.
     if (showBorder)
     {
-        SelectObject(ps.hdc, hPenDark);
-        SelectObject(ps.hdc, hBrushDark);
-        Ellipse(ps.hdc,
-                0,
-                0,
-                diameter,
-                diameter);
-
-        SelectObject(ps.hdc, hPenLight);
-        SelectObject(ps.hdc, hBrushLight);
+        SelectObject(ps.hdc, hPenLightGrey);
+        SelectObject(ps.hdc, hBrushLightGrey);
         Ellipse(ps.hdc,
                 1,
                 1,
                 diameter - 1,
                 diameter - 1);
+
+        SelectObject(ps.hdc, hPenWhite);
+        SelectObject(ps.hdc, hBrushWhite);
+        Ellipse(ps.hdc,
+                2,
+                2,
+                diameter - 2,
+                diameter - 2);
+
+        SelectObject(ps.hdc, hPenDarkGrey);
+        SelectObject(ps.hdc, hBrushDarkGrey);
+        Ellipse(ps.hdc,
+                4,
+                4,
+                diameter - 4,
+                diameter - 4);
     }
 
     DeleteObject(hPenBg);
-    DeleteObject(hPenDark);
-    DeleteObject(hPenLight);
+    DeleteObject(hPenDarkGrey);
+    DeleteObject(hPenLightGrey);
+    DeleteObject(hPenWhite);
     DeleteObject(hBrushBg);
-    DeleteObject(hBrushDark);
-    DeleteObject(hBrushLight);
+    DeleteObject(hBrushDarkGrey);
+    DeleteObject(hBrushLightGrey);
+    DeleteObject(hBrushWhite);
     EndPaint(hwndHost, &ps);
 }
 
@@ -378,6 +390,7 @@ void UpdateSize()
 {
     HRGN hRgn = NULL;
     RECT hostWindowRect = {};
+    RECT magWindowRect = {};
 
     if (diameter < GetSystemMetrics(SM_CYSCREEN) / 4)
     {
@@ -389,34 +402,36 @@ void UpdateSize()
     }
 
     // Update host window size.
-    GetWindowRect(hwndHost, &hostWindowRect);
     SetWindowPos(hwndHost,
                  HWND_TOPMOST,
-                 hostWindowRect.left,
-                 hostWindowRect.top,
+                 0,
+                 0,
                  diameter,
                  diameter,
-                 SWP_NOACTIVATE);
+                 SWP_NOACTIVATE | SWP_NOMOVE);
 
     // Update host window circle size.
-    hRgn = CreateEllipticRgn(0, 0, diameter + 1, diameter + 1);
+    GetClientRect(hwndHost, &hostWindowRect);
+    hRgn = CreateEllipticRgnIndirect(&hostWindowRect);
     SetWindowRgn(hwndHost, hRgn, TRUE);
 
-    // Update magnifier circle size.
-    hRgn = CreateEllipticRgn(BORDERWIDTH,
-                             BORDERWIDTH,
-                             diameter - (BORDERWIDTH * 2),
-                             diameter - (BORDERWIDTH * 2));
-    SetWindowRgn(hwndMag, hRgn, TRUE);
-
     // Update magnifier size.
+    GetClientRect(hwndHost, &magWindowRect);
     SetWindowPos(hwndMag,
                  NULL,
-                 BORDERWIDTH,
-                 BORDERWIDTH,
-                 diameter - (BORDERWIDTH * 2),
-                 diameter - (BORDERWIDTH * 2),
-                 0);
+                 0,
+                 0,
+                 diameter,
+                 diameter,
+                 SWP_NOACTIVATE | SWP_NOMOVE);
+
+    // Update magnifier circle size.
+    magWindowRect.left += BORDERWIDTH;
+    magWindowRect.top += BORDERWIDTH;
+    magWindowRect.right -= BORDERWIDTH - 1;
+    magWindowRect.bottom -= BORDERWIDTH - 1;
+    hRgn = CreateEllipticRgnIndirect(&magWindowRect);
+    SetWindowRgn(hwndMag, hRgn, TRUE);
 
     UpdateMagWindow();
 
