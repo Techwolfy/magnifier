@@ -333,12 +333,12 @@ void OnPaint()
 
     BeginPaint(hwndHost, &ps);
     hPenBg = CreatePen(PS_SOLID, diameter, RGB(0, 0, 255));
-    hPenDarkGrey = CreatePen(PS_SOLID, 0, RGB(33, 33, 33));
-    hPenLightGrey = CreatePen(PS_SOLID, 0, RGB(66, 66, 66));
-    hPenWhite = CreatePen(PS_SOLID, 0, RGB(255, 255, 2255));
+    hPenDarkGrey = CreatePen(PS_SOLID, 0, RGB(176, 176, 176));
+    hPenLightGrey = CreatePen(PS_SOLID, 0, RGB(208, 208, 208));
+    hPenWhite = CreatePen(PS_SOLID, 0, RGB(255, 255, 255));
     hBrushBg = CreateSolidBrush(RGB(0, 0, 255));
-    hBrushDarkGrey = CreateSolidBrush(RGB(33, 33, 33));
-    hBrushLightGrey = CreateSolidBrush(RGB(66, 66, 66));
+    hBrushDarkGrey = CreateSolidBrush(RGB(176, 176, 176));
+    hBrushLightGrey = CreateSolidBrush(RGB(208, 208, 208));
     hBrushWhite = CreateSolidBrush(RGB(255, 255, 255));
 
     // Make entire window transparent.
