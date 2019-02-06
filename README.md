@@ -14,11 +14,11 @@ Controls
 | Ctrl-Minus          | Zoom out                   |
 | Ctrl-Zero           | Reset zoom                 |
 | B                   | Toggle border              |
-| C / Middle-click    | Toggle magnified cursor    |
-| F                   | Toggle follow mode         |
+| C                   | Toggle magnified cursor    |
+| F / Middle-Click    | Toggle follow mode         |
 | Ctrl-Alt-M (global) | Minimize/restore magnifier |
-| ESC / double-click  | Close magnifier            |
+| ESC / Double-Click  | Close magnifier            |
 
 License
 -------
-Magnifier is released under the MIT License. For more informaion, please see [LICENSE](LICENSE).
+Magnifier is published under the MIT License. For more informaion, please see [LICENSE](LICENSE).

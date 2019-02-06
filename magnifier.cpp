@@ -87,15 +87,18 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         }
         else if (wParam == 'B')
         {
+            // Toggle border.
             showBorder = !showBorder;
             RedrawWindow(hwndHost, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
         }
         else if (wParam == 'C')
         {
+            // Toggle magnified cursor.
             ToggleCursor();
         }
         else if (wParam == 'F')
         {
+            // Toggle cursor-follow mode.
             ToggleFollow();
         }
         else if (wParam == VK_OEM_PLUS || wParam == VK_ADD)
@@ -146,8 +149,8 @@ LRESULT CALLBACK HostWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPar
         break;
 
     case WM_MBUTTONDOWN:
-        // Toggle magnified cursor.
-        ToggleCursor();
+        // Toggle cursor-follow mode.
+        ToggleFollow();
         break;
 
     case WM_LBUTTONDOWN:
